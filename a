@@ -1,5 +1,5 @@
 ##################################### Get Address of server ###################################
-$serverUrl = "https://88p3vxw2.asse.devtunnels.ms:8080/";
+$serverUrl = "192.168.0.101:8080/";
 write-host $serverUrl;
 ##################################### Variable declaration  ###################################
 $buffer = New-Object Byte[] 1024;
